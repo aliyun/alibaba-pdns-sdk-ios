@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-//  当前版本：2.2.0
+//  当前版本：2.2.1
 
 #import <Foundation/Foundation.h>
 #import "DNSDomainInfo.h"
