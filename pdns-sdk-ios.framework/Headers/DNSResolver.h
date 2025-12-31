@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-//  当前版本：2.2.1
+//  当前版本：2.3.0
 
 #import <Foundation/Foundation.h>
 #import "DNSDomainInfo.h"
@@ -31,14 +31,14 @@ typedef NS_OPTIONS(NSUInteger, DNSResolverScheme) {
 /// 唯一初始化方法
 + (instancetype)share;
 
-//控制台注册生成，必传参数，该参数设置未来会被弃用，替换为- (void)setAccountId:(NSString *)accountId andAccessKeyId:(NSString *)accessKeyId andAccesskeySecret:(NSString *)accesskeySecret;方法设置
-@property (nonatomic, strong) NSString *accountId;
+//控制台注册生成，必传参数，该参数设置已被弃用，替换为- (void)setAccountId:(NSString *)accountId andAccessKeyId:(NSString *)accessKeyId andAccesskeySecret:(NSString *)accesskeySecret;方法设置
+@property (nonatomic, strong) NSString *accountId __attribute__((unavailable("该参数设置已被弃用，替换为- (void)setAccountId:(NSString *)accountId andAccessKeyId:(NSString *)accessKeyId andAccesskeySecret:(NSString *)accesskeySecret")));
 
-//控制台生成鉴权参数，必传参数，该参数设置未来会被弃用，替换为- (void)setAccountId:(NSString *)accountId andAccessKeyId:(NSString *)accessKeyId andAccesskeySecret:(NSString *)accesskeySecret;方法设置
-@property (nonatomic, strong) NSString *accessKeyId;
+//控制台生成鉴权参数，必传参数，该参数设置已被弃用，替换为- (void)setAccountId:(NSString *)accountId andAccessKeyId:(NSString *)accessKeyId andAccesskeySecret:(NSString *)accesskeySecret;方法设置
+@property (nonatomic, strong) NSString *accessKeyId __attribute__((unavailable("该参数设置已被弃用，替换为- (void)setAccountId:(NSString *)accountId andAccessKeyId:(NSString *)accessKeyId andAccesskeySecret:(NSString *)accesskeySecret")));
 
-//控制台生成鉴权参数，必传参数，该参数设置未来会被弃用，替换为- (void)setAccountId:(NSString *)accountId andAccessKeyId:(NSString *)accessKeyId andAccesskeySecret:(NSString *)accesskeySecret;方法设置
-@property (nonatomic, strong) NSString *accesskeySecret;
+//控制台生成鉴权参数，必传参数，该参数设置已被弃用，替换为- (void)setAccountId:(NSString *)accountId andAccessKeyId:(NSString *)accessKeyId andAccesskeySecret:(NSString *)accesskeySecret;方法设置
+@property (nonatomic, strong) NSString *accesskeySecret __attribute__((unavailable("该参数设置已被弃用，替换为- (void)setAccountId:(NSString *)accountId andAccessKeyId:(NSString *)accessKeyId andAccesskeySecret:(NSString *)accesskeySecret")));
 
 ///是否开启缓存， 默认为YES
 @property (nonatomic, assign) BOOL cacheEnable;
@@ -88,8 +88,53 @@ typedef NS_OPTIONS(NSUInteger, DNSResolverScheme) {
 //获取SessionId
 - (NSString *)getSessionId;
 
-//控制台注册生成
-- (void)setAccountId:(NSString *)accountId andAccessKeyId:(NSString *)accessKeyId andAccesskeySecret:(NSString *)accesskeySecret;
+/**
+ * 设置公共 DNS 鉴权信息
+ * 通过此接口公共 DNS 鉴权凭证
+ * SDK 将使用这些信息发起请求
+ * @param accountId 控制台注册生成 accountId（用于鉴权）
+ * @param accessKeyId 控制台注册生成accessKeyId（用于鉴权）
+ * @param accesskeySecret 控制台注册生成accesskeySecret（用于鉴权）
+ */
+- (void)setAccountId:(NSString *_Nonnull)accountId andAccessKeyId:(NSString *_Nonnull)accessKeyId andAccesskeySecret:(NSString *_Nonnull)accesskeySecret;
+
+/**使用私有化部署的融合DNS相关，若只使用公共DNS不需要设置该方法
+ *
+ * 设置融合 DNS 服务器地址和鉴权信息
+ * 客户通过此接口传入私有 DNS 服务器的地址和鉴权凭证
+ * SDK 将使用这些信息发起请求
+ * @param ipv4 IPv4 地址数组（可为 nil）
+ * @param ipv6 IPv6 地址数组（可为 nil）
+ * @param host Host 域名数组（可为 nil）
+ * @param port 服务端口（如 @"443"，传 nil 使用默认）
+ * @param healthCheckDomain 熔断后健康检查域名，当某个解析服务连续失败次数大于3次后，会触发熔断，该解析服务ip会进入healthCheck状态 （后续请求不会走该服务），定时器每分钟会使用该healthCheckDomain调用解析接口探测该解析服务是否可以使用，如果探测成功，则恢复alive状态（后续请求可以走该服务）
+ * @param accessKeyId 客户私有 accessKeyId（用于鉴权）
+ * @param accesskeySecret 客户私有 accesskeySecret（用于鉴权）
+ */
+- (void)setFusionDNSWithIPv4:(NSArray<NSString *> * _Nullable)ipv4
+                        IPv6:(NSArray<NSString *> * _Nullable)ipv6
+                        Host:(NSArray<NSString *> * _Nullable)host
+                        Port:(NSString * _Nullable)port
+           HealthCheckDomain:(NSString * _Nonnull)healthCheckDomain
+                 accessKeyId:(NSString * _Nonnull)accessKeyId
+             accesskeySecret:(NSString * _Nonnull)accesskeySecret;
+
+/**使用私有化部署的融合DNS相关，若只使用公共DNS不需要设置该方法
+ *
+ * 是否启用融合 DNS的证书校验（默认 YES）服务端没有配置域名证书和ip证书时，可以设置为NO来测试，一旦到生产环境，推荐一定要设置为YES，否则有安全风险。
+ * @param enable YES 启用（默认 YES），NO 禁用
+ */
+- (void)setEnableCertificateValidation:(BOOL)enable;
+
+
+/**公共云DNS和融合云DNS同时配置时，设置主用DNS连续失败多少次后自动降级到备用DNS来兜底，如果只配置一种DNS,不需要设置该方法
+ *
+ * 设置主用DNS连续失败多少次后自动降级到备用DNS来兜底，如果只配置一种DNS,不需要设置该方法
+ * @param fallbackThreshold 次数（主用公共DNS时默认 4，主用融合DNS时默认2）
+ * 可设置范围[0-4]  设置0表示立即降级，最大4
+ */
+- (void)setFallbackThreshold:(NSInteger)fallbackThreshold;
+
 
 ///解析缓存过期时自动刷新, 以数组形式进行配置。
 ///示例代码：[[DNSResolver share] setKeepAliveDomains:@[@"www.aliyun.com", @"www.taobao.com"]];
@@ -170,7 +215,7 @@ typedef NS_OPTIONS(NSUInteger, DNSResolverScheme) {
 /// 直接从缓存中获取ipv6解析结果，无需等待.  如无缓存，或有缓存但已过期，并且enable为NO，则返回 nil
 /// @param domain   域名
 /// @param enable   是否允许返回过期ip
-- (NSArray<NSString *> *)getIpv6ByCacheWithDomain:(NSString *)domain andExpiredIPEnabled:(BOOL)enable;
+- (NSArray<NSString *> *)getIpv6ByCacheWithDomain:(NSString *_Nonnull)domain andExpiredIPEnabled:(BOOL)enable;
 
 ///hostArray为需要清除的host域名数组。如果需要清空全部数据，传nil或者空数组即可
 ///示例代码：[[DNSResolver share] clearHostCache:@[@"www.aliyun.com", @"www.taobao.com"]];

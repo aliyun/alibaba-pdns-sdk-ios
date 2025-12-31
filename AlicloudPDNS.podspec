@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name             = "AlicloudPDNS"
-  s.version          = "2.2.1"
+  s.version          = "2.3.0"
   s.summary          = "阿里云公共DNS-SDK"
   s.homepage         = "https://help.aliyun.com/document_detail/181345.html"
   s.author           = { "路阳" => "ly02350553@alibaba-inc.com" }
