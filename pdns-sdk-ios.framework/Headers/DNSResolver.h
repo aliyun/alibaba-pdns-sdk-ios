@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-//  当前版本：2.3.0
+//  当前版本：2.3.1
 
 #import <Foundation/Foundation.h>
 #import "DNSDomainInfo.h"
@@ -46,11 +46,14 @@ typedef NS_OPTIONS(NSUInteger, DNSResolverScheme) {
 //是否区分不同网络下的缓存数据， 默认为YES
 @property (nonatomic, assign) BOOL ispEnable;
 
-//是否开启IP测速， 默认为NO
+//是否开启IP测速， 2.3.1版本起默认为YES，之前默认为NO
 @property (nonatomic, assign) BOOL speedTestEnable;
 
-///设置测速方式,默认为0（icmp探测），不为0（socket端口建连探测）例如：80/443
+///设置测速方式,0为（icmp探测），不为0例如：80/443,（socket端口建连探测）   2.3.1版本起默认80，之前默认443
 @property (nonatomic, assign) int speedPort;
+
+///IPv6测速让分(ms)：开启测速的v4/v6混合排序中，IPv6有效测速时间减去该值，v4/v6相差不超过该值时优先IPv6。默认0=关闭，有效范围[0,1000]，仅测速开启时生效
+@property (nonatomic, assign) NSInteger speedTestIpv6PreferMs;
 
 ///是否只获取域名对应的ip， 默认为NO
 @property (nonatomic, assign) BOOL shortEnable;
@@ -60,6 +63,9 @@ typedef NS_OPTIONS(NSUInteger, DNSResolverScheme) {
 
 ///最大的否定缓存ttl配置，默认30s
 @property (nonatomic, assign) double maxNegativeCache;
+
+///最小的缓存ttl配置，默认60s
+@property (nonatomic, assign) double minCacheTTL;
 
 ///最大的缓存ttl配置，默认3600s
 @property (nonatomic, assign) double maxCacheTTL;
@@ -73,14 +79,19 @@ typedef NS_OPTIONS(NSUInteger, DNSResolverScheme) {
 ///解析超时时间，建议2~5s，默认3s
 @property (nonatomic, assign) NSTimeInterval timeout;
 
-///缓存永久有效
+///缓存永久有效， 默认为NO
 @property (nonatomic, assign) BOOL immutableCacheEnable;
 
-///是否开启localdns兜底
+///是否开启localdns兜底， 默认为YES
 @property (nonatomic, assign) BOOL localdnsEnable;
 
 ///设置ecs地址
 @property (nonatomic, copy) NSString *ednsSubnet;
+
+///SDK同时在飞的解析请求最大并发数
+///取值范围[1, 50]，越界自动夹紧；默认10，推荐范围[5, 30]
+///建议在首次解析请求之前设置
+@property (nonatomic, assign) NSInteger maxConcurrentResolveCount;
 
 + (void)enableLog;
 
@@ -107,7 +118,8 @@ typedef NS_OPTIONS(NSUInteger, DNSResolverScheme) {
  * @param ipv6 IPv6 地址数组（可为 nil）
  * @param host Host 域名数组（可为 nil）
  * @param port 服务端口（如 @"443"，传 nil 使用默认）
- * @param healthCheckDomain 熔断后健康检查域名，当某个解析服务连续失败次数大于3次后，会触发熔断，该解析服务ip会进入healthCheck状态 （后续请求不会走该服务），定时器每分钟会使用该healthCheckDomain调用解析接口探测该解析服务是否可以使用，如果探测成功，则恢复alive状态（后续请求可以走该服务）
+ * @param healthCheckDomain 熔断后健康检查域名，当某个解析服务连续失败次数大于3次后，会触发熔断，该解析服务ip会进入healthCheck状态
+ *       （后续请求不会走该服务），定时器每分钟会使用该healthCheckDomain调用解析接口探测该解析服务是否可以使用，如果探测成功，则恢复alive状态（后续请求可以走该服务）
  * @param accessKeyId 客户私有 accessKeyId（用于鉴权）
  * @param accesskeySecret 客户私有 accesskeySecret（用于鉴权）
  */
@@ -119,17 +131,10 @@ typedef NS_OPTIONS(NSUInteger, DNSResolverScheme) {
                  accessKeyId:(NSString * _Nonnull)accessKeyId
              accesskeySecret:(NSString * _Nonnull)accesskeySecret;
 
-/**使用私有化部署的融合DNS相关，若只使用公共DNS不需要设置该方法
- *
- * 是否启用融合 DNS的证书校验（默认 YES）服务端没有配置域名证书和ip证书时，可以设置为NO来测试，一旦到生产环境，推荐一定要设置为YES，否则有安全风险。
- * @param enable YES 启用（默认 YES），NO 禁用
- */
-- (void)setEnableCertificateValidation:(BOOL)enable;
 
-
-/**公共云DNS和融合云DNS同时配置时，设置主用DNS连续失败多少次后自动降级到备用DNS来兜底，如果只配置一种DNS,不需要设置该方法
+/**公共云DNS和融合云DNS同时配置时，设置主用DNS解析失败多少次后自动降级到备用DNS来兜底，如果只配置一种DNS,不需要设置该方法
  *
- * 设置主用DNS连续失败多少次后自动降级到备用DNS来兜底，如果只配置一种DNS,不需要设置该方法
+ * 设置主用DNS解析失败多少次后自动降级到备用DNS来兜底，如果只配置一种DNS,不需要设置该方法
  * @param fallbackThreshold 次数（主用公共DNS时默认 4，主用融合DNS时默认2）
  * 可设置范围[0-4]  设置0表示立即降级，最大4
  */
@@ -153,6 +158,7 @@ typedef NS_OPTIONS(NSUInteger, DNSResolverScheme) {
 - (void)getIpsDataWithDomain:(NSString *)domain complete:(void(^)(NSArray<NSString *> *dataArray))complete;
 
 /// 自动感知网络环境（ipv4-only、ipv6-only、ipv4和ipv6双栈）直接从缓存中获取适用于当前网络环境的ip数组，无需等待.  如无缓存，或有缓存但已过期并且enable为NO，则返回 nil
+/// 如果没有缓存或者缓存过期则异步解析然后刷新缓存
 /// @param domain   域名
 /// @param enable   是否允许返回过期ip
 - (NSArray<NSString *> *)getIpsByCacheWithDomain:(NSString *)domain andExpiredIPEnabled:(BOOL)enable;
@@ -208,11 +214,13 @@ typedef NS_OPTIONS(NSUInteger, DNSResolverScheme) {
 - (void)preloadIpv6Domains:(NSArray<NSString *> *)domainArray complete:(void(^)(void))complete;
 
 /// 直接从缓存中获取ipv4解析结果，无需等待.  如无缓存，或有缓存但已过期，并且enable为NO，则返回 nil
+/// 如果没有缓存或者缓存过期则异步解析然后刷新缓存
 /// @param domain   域名
 /// @param enable   是否允许返回过期ip
 - (NSArray<NSString *> *)getIpv4ByCacheWithDomain:(NSString *)domain andExpiredIPEnabled:(BOOL)enable;
 
 /// 直接从缓存中获取ipv6解析结果，无需等待.  如无缓存，或有缓存但已过期，并且enable为NO，则返回 nil
+/// 如果没有缓存或者缓存过期则异步解析然后刷新缓存
 /// @param domain   域名
 /// @param enable   是否允许返回过期ip
 - (NSArray<NSString *> *)getIpv6ByCacheWithDomain:(NSString *_Nonnull)domain andExpiredIPEnabled:(BOOL)enable;

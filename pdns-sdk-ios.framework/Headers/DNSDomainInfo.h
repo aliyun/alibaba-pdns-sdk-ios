@@ -25,5 +25,12 @@
 @property (nonatomic, copy) NSString *domain;
 ///domain name被解析后的对应的ip地址
 @property (nonatomic, copy) NSString *data;
+///解析器类型：PublicDNS / FusionDNS / LocalDNS（取值参见 DNSConst.h 中 RESOLVER_* 常量）
+@property (nonatomic, copy) NSString *resolverType;
+///缓存写入场景：@"0" 同步解析 / @"1" preload预解析 / @"2" 取缓存的异步刷新 / @"3" 定时刷新（取值参见 SCENE_* 常量）
+@property (nonatomic, copy) NSString *scene;
+
+///是否已有真实测速结果（delayTimes 是否非空）。用于区分"未测速"与"已测速"，不能用 speedTestTime==5000 判断
+- (BOOL)hasSpeedResult;
 
 @end

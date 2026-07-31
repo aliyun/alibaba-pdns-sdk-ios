@@ -14,8 +14,8 @@
 #define DNSLogDebug(frmt, ...) \
     do { \
         if ([DNSLog validLogHandler]) { \
-            NSString *logFormat = [NSString stringWithFormat:@"pdns: %s", frmt]; \
-            NSString *logStr = [NSString stringWithFormat:logFormat, ##__VA_ARGS__]; \
+            /* 修复：直接用 %@ 而不是先转成C字符串再格式化 */ \
+            NSString *logStr = [NSString stringWithFormat:@"pdns: " frmt, ##__VA_ARGS__]; \
             [DNSLog outputToLogHandler:logStr]; \
         } \
         if ([DNSLog isEnabled]) { \
@@ -26,7 +26,7 @@
                 [formatter setDateFormat:@"yyyy-MM-dd HH:mm:ss.SSS"]; \
             }); \
             NSString *timestamp = [formatter stringFromDate:[NSDate date]]; \
-            NSLog(@"\%@ %s [Line %d] pdns: " frmt, \
+            NSLog(@"%@ %s [Line %d] pdns: " frmt, \
                   timestamp, \
                   __PRETTY_FUNCTION__, \
                   __LINE__, \
